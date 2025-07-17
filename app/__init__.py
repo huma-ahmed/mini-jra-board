@@ -1,7 +1,8 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from flask_cors import CORS  # ✅ Needed for React
+
+from flask_cors import CORS  
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -9,15 +10,25 @@ login_manager = LoginManager()
 def create_app():
     app = Flask(__name__)
     
-    # ✅ Basic config
+
+    
     app.config['SECRET_KEY'] = 'your-secret-key'
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # ✅ Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
-    CORS(app, supports_credentials=True)  # ✅ Allow cross-origin for React
+
+    CORS(app, supports_credentials=True)  
+
+    login_manager.login_view = 'main.login' 
+
+   
+    @login_manager.user_loader
+    def load_user(user_id):
+        from .models import User
+        return User.query.get(int(user_id))
+>>>>>>> 6186e0a (update file of backend)
 
     login_manager.login_view = 'main.login'  # ✅ Required for @login_required
 
