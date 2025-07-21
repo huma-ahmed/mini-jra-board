@@ -30,7 +30,7 @@ def register():
 
     return jsonify({"message": "User successfully registered"}), 201
 
-@main.route("/login", methods=['POST'])
+@main.route("/api/login", methods=['POST'])
 def login():
     data = request.get_json()
     username = data.get('username')
@@ -80,6 +80,21 @@ def get_tasks():
 
     return jsonify([task.to_dict() for task in tasks])
 
+@main.route('/api/tasks/<int:task_id>', methods=['GET'])
+@login_required
+def get_task(task_id):
+    task = Task.query.get(task_id)
+    if not task:
+        return jsonify({"message": "Task not found"}), 404
+    return jsonify({
+        "id": task.id,
+        "name": task.name,
+        "description": task.description,
+        "status": task.status,
+        "reporter": task.reporter
+    })
+
+
 @main.route("/api/tasks/<int:task_id>", methods=["PUT"])
 @login_required
 def edit_task(task_id):
@@ -105,3 +120,4 @@ def delete_task(task_id):
     db.session.delete(task)
     db.session.commit()
     return jsonify({"message": "Task deleted"}), 200
+
