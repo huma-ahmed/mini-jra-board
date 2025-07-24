@@ -1,53 +1,65 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Box, TextField, Button, Typography, MenuItem, Paper
+  Box, Button, MenuItem, TextField, Typography, Paper
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
+import CommentModal from './CommentModal';
 
-const reporterList = ['Ali', 'Zohan', 'Sara', 'Ayesha'];
-
-function EditTask() {
-  const [name, setName] = useState('');
+const EditTask = () => {
+  const { taskId } = useParams();
+  const navigate = useNavigate();
+  const [taskName, setTaskName] = useState('');
   const [description, setDescription] = useState('');
   const [reporter, setReporter] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState('To-Do');
   const [comment, setComment] = useState('');
-  const navigate = useNavigate();
-  const { id } = useParams();
+  const [openCommentModal, setOpenCommentModal] = useState(false);
+
+  const reporterOptions = ['Ali', 'Sara', 'Zohan'];
 
   useEffect(() => {
     fetch(`http://localhost:5000/api/tasks`, {
       method: 'GET',
-      credentials: 'include'
+      credentials: 'include',
     })
       .then(res => res.json())
       .then(data => {
-        const task = data.find(t => t.id === parseInt(id));
+        const task = data.find(t => t.id === parseInt(taskId));
         if (task) {
-          setName(task.name);
+          setTaskName(task.name);
           setStatus(task.status);
-
-          const fullDesc = task.description || '';
-          const mainDesc = fullDesc.split('\n')[0].trim();
-          setDescription(mainDesc);
-
-          const reporterMatch = fullDesc.match(/Reporter:\s*(.*)/);
-          setReporter(reporterMatch ? reporterMatch[1].trim() : '');
-
-          const commentMatch = fullDesc.match(/Comment:\s*(.*)/);
-          setComment(commentMatch ? commentMatch[1].trim() : '');
+          setDescription(extractMainDescription(task.description));
+          setReporter(extractField(task.description, 'Reporter'));
+          setComment(extractField(task.description, 'Comment'));
         }
       });
-  }, [id]);
+  }, [taskId]);
 
-  const handleUpdate = async () => {
-    const fullDescription = `${description}\nReporter: ${reporter}${comment ? `\nComment: ${comment}` : ''}`;
+  const extractField = (desc, label) => {
+    const match = desc.match(new RegExp(`${label}:\\s*(.*)`, 'i'));
+    return match ? match[1].trim() : '';
+  };
 
-    const response = await fetch(`http://localhost:5000/api/tasks/${id}`, {
+  const extractMainDescription = (desc) => {
+    return desc.split('\n')[0].trim();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const fullDescription = `${description.trim()}\nReporter: ${reporter}${comment ? `\nComment: ${comment.trim()}` : ''}`;
+
+    const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
       credentials: 'include',
-      body: JSON.stringify({ name, description: fullDescription, status }),
+      body: JSON.stringify({
+        name: taskName,
+        description: fullDescription,
+        status,
+      }),
     });
 
     if (response.ok) {
@@ -58,24 +70,80 @@ function EditTask() {
   };
 
   return (
-    <Paper elevation={3} style={{ padding: 20, maxWidth: 600, margin: '20px auto' }}>
-      <Typography variant="h5" gutterBottom>Edit Task</Typography>
-      <TextField label="Task Name" fullWidth margin="normal" value={name} onChange={e => setName(e.target.value)} />
-      <TextField label="Task Description" fullWidth multiline minRows={3} margin="normal" value={description} onChange={e => setDescription(e.target.value)} />
-      <TextField select label="Reporter" fullWidth margin="normal" value={reporter} onChange={e => setReporter(e.target.value)}>
-        {reporterList.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
-      </TextField>
-      <TextField select label="Status" fullWidth margin="normal" value={status} onChange={e => setStatus(e.target.value)}>
-        {['To-Do', 'In Progress', 'Completed', 'Blocked'].map((s) => (
-          <MenuItem key={s} value={s}>{s}</MenuItem>
-        ))}
-      </TextField>
-      <TextField label="Comment (Optional)" fullWidth margin="normal" multiline minRows={2} value={comment} onChange={e => setComment(e.target.value)} />
-      <Box mt={2}>
-        <Button variant="contained" color="primary" onClick={handleUpdate}>Update Task</Button>
-      </Box>
-    </Paper>
+    <Box p={3} maxWidth={600} mx="auto">
+      <Paper elevation={3} style={{ padding: 20 }}>
+        <Typography variant="h5" gutterBottom>Edit Task</Typography>
+        <form onSubmit={handleSubmit}>
+          <TextField
+            label="Task Name"
+            value={taskName}
+            onChange={(e) => setTaskName(e.target.value)}
+            fullWidth
+            margin="normal"
+            required
+          />
+          <TextField
+            label="Task Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            fullWidth
+            multiline
+            rows={4}
+            margin="normal"
+            required
+          />
+          <TextField
+            select
+            label="Reporter"
+            value={reporter}
+            onChange={(e) => setReporter(e.target.value)}
+            fullWidth
+            margin="normal"
+            required
+          >
+            {reporterOptions.map((rep) => (
+              <MenuItem key={rep} value={rep}>{rep}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            fullWidth
+            margin="normal"
+            required
+          >
+            {['To-Do', 'In Progress', 'Completed', 'Blocked'].map((s) => (
+              <MenuItem key={s} value={s}>{s}</MenuItem>
+            ))}
+          </TextField>
+
+          <Button
+            variant="outlined"
+            onClick={() => setOpenCommentModal(true)}
+            style={{ marginTop: 10 }}
+          >
+            Add/Edit Comment
+          </Button>
+
+          <CommentModal
+            open={openCommentModal}
+            onClose={() => setOpenCommentModal(false)}
+            onSave={(val) => {
+              setComment(val);
+              setOpenCommentModal(false);
+            }}
+            value={comment}
+          />
+
+          <Box mt={2}>
+            <Button variant="contained" color="primary" type="submit">Update Task</Button>
+          </Box>
+        </form>
+      </Paper>
+    </Box>
   );
-}
+};
 
 export default EditTask;
