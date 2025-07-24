@@ -8,6 +8,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+<<<<<<< HEAD
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
       setError("Both username and password are required.");
@@ -37,6 +38,15 @@ export default function Login() {
       console.error("❌ Network/server error:", err);
       setError("Server error. Please try again later.");
     }
+=======
+  const handleLogin = () => {
+    if (!username || !password) {
+      setError("Both fields are required.");
+      return;
+    }
+    setError('');
+    navigate('/dashboard');
+>>>>>>> c9f996371e88373e6cf7efb0c150370810fdcb5f
   };
 
   return (
@@ -45,6 +55,7 @@ export default function Login() {
         <Typography variant="h5" textAlign="center" gutterBottom>
           Login
         </Typography>
+<<<<<<< HEAD
 
         <TextField
           label="Username"
@@ -85,6 +96,13 @@ export default function Login() {
           sx={{ mt: 1 }}
           onClick={() => navigate('/register')}
         >
+=======
+        <TextField label="Username" fullWidth margin="normal" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <TextField label="Password" type="password" fullWidth margin="normal" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {error && <Typography color="error" variant="body2">{error}</Typography>}
+        <Button variant="contained" color="primary" fullWidth sx={{ mt: 2 }} onClick={handleLogin}>Login</Button>
+        <Button variant="text" fullWidth sx={{ mt: 1 }} onClick={() => navigate('/register')}>
+>>>>>>> c9f996371e88373e6cf7efb0c150370810fdcb5f
           Don't have an account? Register
         </Button>
       </Card>

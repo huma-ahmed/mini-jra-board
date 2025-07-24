@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function Register() {
   const [username, setUsername] = useState('');
+<<<<<<< HEAD
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -56,6 +57,21 @@ export default function Register() {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleRegister();
+=======
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  const handleRegister = () => {
+    if (!username || !email || !password) {
+      setError("All fields are required.");
+      return;
+    }
+    setError('');
+    alert("Registered successfully!");
+    navigate('/');
+>>>>>>> c9f996371e88373e6cf7efb0c150370810fdcb5f
   };
 
   return (
@@ -64,6 +80,7 @@ export default function Register() {
         <Typography variant="h5" textAlign="center" gutterBottom>
           Register
         </Typography>
+<<<<<<< HEAD
 
         <TextField
           label="Username"
@@ -111,6 +128,14 @@ export default function Register() {
           sx={{ mt: 1 }}
           onClick={() => navigate('/')}
         >
+=======
+        <TextField label="Username" fullWidth margin="normal" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <TextField label="Email" fullWidth margin="normal" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <TextField label="Password" type="password" fullWidth margin="normal" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {error && <Typography color="error" variant="body2">{error}</Typography>}
+        <Button variant="contained" color="primary" fullWidth sx={{ mt: 2 }} onClick={handleRegister}>Register</Button>
+        <Button variant="text" fullWidth sx={{ mt: 1 }} onClick={() => navigate('/')}>
+>>>>>>> c9f996371e88373e6cf7efb0c150370810fdcb5f
           Already have an account? Login
         </Button>
       </Card>
