@@ -12,8 +12,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/create-task" element={<CreateTask />} />       
-        <Route path="/edit-task/:id" element={<EditTask />} />        
-        <Route path="/view-task/:id" element={<ViewTask />} />
+        <Route path="/edit-task/:taskId" element={<EditTask />} />        
+        <Route path="/view-task/:taskId" element={<ViewTask />} />
       </Routes>
     </Router>
   );

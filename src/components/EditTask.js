@@ -1,148 +1,166 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box, Button, MenuItem, TextField, Typography, Paper
 } from '@mui/material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import CommentModal from './CommentModal';
 
 const EditTask = () => {
   const { taskId } = useParams();
   const navigate = useNavigate();
+
   const [taskName, setTaskName] = useState('');
   const [description, setDescription] = useState('');
+  const [status, setStatus] = useState('');
   const [reporter, setReporter] = useState('');
-  const [status, setStatus] = useState('To-Do');
   const [comment, setComment] = useState('');
-  const [openCommentModal, setOpenCommentModal] = useState(false);
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [error, setError] = useState('');
 
-  const reporterOptions = ['Ali', 'Sara', 'Zohan'];
+  const parseDescription = (desc) => {
+    const reporterMatch = desc.match(/Reporter:\s*(.+)/);
+    const commentMatch = desc.match(/Comment:\s*(.+)/);
+    const mainDesc = desc.split('Reporter:')[0].trim();
+
+    return {
+      description: mainDesc,
+      reporter: reporterMatch ? reporterMatch[1].split('\n')[0].trim() : '',
+      comment: commentMatch ? commentMatch[1].trim() : '',
+    };
+  };
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/tasks`, {
-      method: 'GET',
-      credentials: 'include',
-    })
-      .then(res => res.json())
-      .then(data => {
-        const task = data.find(t => t.id === parseInt(taskId));
-        if (task) {
-          setTaskName(task.name);
-          setStatus(task.status);
-          setDescription(extractMainDescription(task.description));
-          setReporter(extractField(task.description, 'Reporter'));
-          setComment(extractField(task.description, 'Comment'));
+    const fetchTask = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/tasks', {
+          method: 'GET',
+          credentials: 'include',
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch tasks');
         }
-      });
+
+        const data = await res.json();
+        const task = data.find((t) => t.id === parseInt(taskId));
+
+        if (!task) {
+          throw new Error('Task not found');
+        }
+
+        const parsed = parseDescription(task.description);
+        setTaskName(task.name);
+        setDescription(parsed.description);
+        setReporter(parsed.reporter);
+        setComment(parsed.comment);
+        setStatus(task.status);
+      } catch (err) {
+        console.error(err);
+        setError(err.message);
+      }
+    };
+
+    fetchTask();
   }, [taskId]);
-
-  const extractField = (desc, label) => {
-    const match = desc.match(new RegExp(`${label}:\\s*(.*)`, 'i'));
-    return match ? match[1].trim() : '';
-  };
-
-  const extractMainDescription = (desc) => {
-    return desc.split('\n')[0].trim();
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const fullDescription = `${description.trim()}\nReporter: ${reporter}${comment ? `\nComment: ${comment.trim()}` : ''}`;
+    const fullDescription = `${description}\nReporter: ${reporter}${comment ? `\nComment: ${comment}` : ''}`;
 
-    const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        name: taskName,
-        description: fullDescription,
-        status,
-      }),
-    });
+    try {
+      const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: taskName,
+          description: fullDescription,
+          status,
+        }),
+      });
 
-    if (response.ok) {
+      if (!res.ok) {
+        throw new Error('Failed to update task');
+      }
+
       navigate('/dashboard');
-    } else {
+    } catch (err) {
+      console.error(err);
       alert('Failed to update task');
     }
   };
 
+  if (error) {
+    return (
+      <Typography variant="h6" color="error" align="center" mt={4}>
+        {error}
+      </Typography>
+    );
+  }
+
   return (
-    <Box p={3} maxWidth={600} mx="auto">
-      <Paper elevation={3} style={{ padding: 20 }}>
-        <Typography variant="h5" gutterBottom>Edit Task</Typography>
-        <form onSubmit={handleSubmit}>
-          <TextField
-            label="Task Name"
-            value={taskName}
-            onChange={(e) => setTaskName(e.target.value)}
-            fullWidth
-            margin="normal"
-            required
-          />
-          <TextField
-            label="Task Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            fullWidth
-            multiline
-            rows={4}
-            margin="normal"
-            required
-          />
-          <TextField
-            select
-            label="Reporter"
-            value={reporter}
-            onChange={(e) => setReporter(e.target.value)}
-            fullWidth
-            margin="normal"
-            required
-          >
-            {reporterOptions.map((rep) => (
-              <MenuItem key={rep} value={rep}>{rep}</MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            label="Status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            fullWidth
-            margin="normal"
-            required
-          >
-            {['To-Do', 'In Progress', 'Completed', 'Blocked'].map((s) => (
-              <MenuItem key={s} value={s}>{s}</MenuItem>
-            ))}
-          </TextField>
+    <Paper elevation={3} sx={{ p: 4, width: '80%', mx: 'auto', mt: 4 }}>
+      <Typography variant="h5" gutterBottom>Edit Task</Typography>
+      <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <TextField
+          label="Task Name"
+          value={taskName}
+          onChange={(e) => setTaskName(e.target.value)}
+          required
+        />
+        <TextField
+          label="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          multiline
+          rows={4}
+          required
+        />
+        <TextField
+          select
+          label="Reporter"
+          value={reporter}
+          onChange={(e) => setReporter(e.target.value)}
+          required
+        >
+          <MenuItem value="Ali">Ali</MenuItem>
+          <MenuItem value="Zohan">Zohan</MenuItem>
+          <MenuItem value="Omama">Omama</MenuItem>
+        </TextField>
+        <TextField
+          select
+          label="Status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          required
+        >
+          <MenuItem value="TO-DO">TO-DO</MenuItem>
+          <MenuItem value="IN-PROGRESS">IN-PROGRESS</MenuItem>
+          <MenuItem value="BLOCKED">BLOCKED</MenuItem>
+          <MenuItem value="COMPLETED">COMPLETED</MenuItem>
+        </TextField>
 
-          <Button
-            variant="outlined"
-            onClick={() => setOpenCommentModal(true)}
-            style={{ marginTop: 10 }}
-          >
-            Add/Edit Comment
+        <Box display="flex" justifyContent="space-between">
+          <Button variant="outlined" onClick={() => setShowCommentModal(true)}>
+            Edit Comment
           </Button>
+          <Button variant="contained" type="submit">
+            Update Task
+          </Button>
+        </Box>
+      </Box>
 
-          <CommentModal
-            open={openCommentModal}
-            onClose={() => setOpenCommentModal(false)}
-            onSave={(val) => {
-              setComment(val);
-              setOpenCommentModal(false);
-            }}
-            value={comment}
-          />
-
-          <Box mt={2}>
-            <Button variant="contained" color="primary" type="submit">Update Task</Button>
-          </Box>
-        </form>
-      </Paper>
-    </Box>
+      <CommentModal
+        open={showCommentModal}
+        onClose={() => setShowCommentModal(false)}
+        onSave={(value) => {
+          setComment(value);
+          setShowCommentModal(false);
+        }}
+        value={comment}
+      />
+    </Paper>
   );
 };
 

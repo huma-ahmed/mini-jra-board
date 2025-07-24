@@ -43,6 +43,26 @@ const Dashboard = () => {
     }
   };
 
+  const handleDelete = async (taskId) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this task?");
+     if (!confirmDelete) return;
+
+       try {
+       const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+       });
+
+       if (res.ok) {
+        setTasks(tasks.filter(task => task.id !== taskId));
+       } else {
+        alert('Failed to delete task');
+       }
+       } catch (err) {
+      console.error('Error deleting task:', err);
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
   }, []);
@@ -76,6 +96,7 @@ const Dashboard = () => {
                 <TableCell>
                   <Button onClick={() => navigate(`/view-task/${task.id}`)}>View</Button>
                   <Button onClick={() => navigate(`/edit-task/${task.id}`)}>Edit</Button>
+                  <Button onClick={() => handleDelete(task.id)} color="error">Delete</Button>
                   {/* Optional delete */}
                 </TableCell>
               </TableRow>

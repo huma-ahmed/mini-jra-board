@@ -1,116 +1,115 @@
 import React, { useState } from 'react';
 import {
-  Box, Button, TextField, Typography, MenuItem,
-  Paper, Dialog, DialogTitle, DialogContent, DialogActions
+  Box, Button, MenuItem, TextField, Typography, Paper
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import CommentModal from './CommentModal';
 
 const CreateTask = () => {
   const [taskName, setTaskName] = useState('');
   const [description, setDescription] = useState('');
-  const [reporter, setReporter] = useState('');
   const [status, setStatus] = useState('TO-DO');
+  const [reporter, setReporter] = useState('');
   const [comment, setComment] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
-
-  const reporterOptions = ['Ali', 'Sara', 'Zohan', 'Ahmed'];
-  const statusOptions = ['TO-DO', 'IN PROGRESS', 'BLOCKED', 'COMPLETED'];
-
   const navigate = useNavigate();
 
-  const handleSubmit = async () => {
-    if (!taskName || !description || !reporter || !status) {
-      alert("All fields except comment are required.");
-      return;
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-    const fullDescription = `${description.trim()}\nReporter: ${reporter}${comment ? `\nComment: ${comment.trim()}` : ''}`;
+    const finalDescription = `${description}\nReporter: ${reporter}${comment ? `\nComment: ${comment}` : ''}`;
 
     try {
-      const response = await fetch('http://localhost:5000/api/tasks', {
+      const response = await fetch('http://localhost:5000/api/tasks', { // <== FIXED URL
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           name: taskName,
-          description: fullDescription,
-          status: status
-        })
+          description: finalDescription,
+          status,
+        }),
       });
 
-      if (response.ok) {
-        navigate('/dashboard');
-      } else {
-        const err = await response.text();
-        console.error('Task creation failed:', err);
-        alert('Failed to create task');
+      if (!response.ok) {
+        throw new Error('Task creation failed');
       }
+
+      navigate('/dashboard');
     } catch (error) {
       console.error('Error creating task:', error);
-      alert('Something went wrong');
+      alert('Task creation failed. Please check inputs or try again.');
     }
   };
 
   return (
-    <Box p={3} maxWidth={600} mx="auto">
+    <Paper elevation={3} sx={{ p: 4, width: '80%', mx: 'auto', mt: 4 }}>
       <Typography variant="h5" gutterBottom>Create Task</Typography>
-      <Paper elevation={3} sx={{ p: 3 }}>
+      <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <TextField
-          fullWidth label="Task Name"
+          id="taskName"
+          label="Task Name"
+          name="taskName"
           value={taskName}
           onChange={(e) => setTaskName(e.target.value)}
-          margin="normal"
+          required
         />
         <TextField
-          fullWidth label="Task Description"
+          id="description"
+          label="Description"
+          name="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          margin="normal" multiline rows={4}
+          multiline
+          rows={4}
+          required
         />
         <TextField
-          select fullWidth label="Reporter"
+          id="reporter"
+          select
+          label="Reporter"
+          name="reporter"
           value={reporter}
           onChange={(e) => setReporter(e.target.value)}
-          margin="normal"
+          required
         >
-          {reporterOptions.map((option) => (
-            <MenuItem key={option} value={option}>{option}</MenuItem>
-          ))}
+          <MenuItem value="Ali">Ali</MenuItem>
+          <MenuItem value="Zohan">Zohan</MenuItem>
+          <MenuItem value="Omama">Omama</MenuItem>
         </TextField>
         <TextField
-          select fullWidth label="Status"
+          id="status"
+          select
+          label="Status"
+          name="status"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          margin="normal"
+          required
         >
-          {statusOptions.map((option) => (
-            <MenuItem key={option} value={option}>{option}</MenuItem>
-          ))}
+          <MenuItem value="TO-DO">TO-DO</MenuItem>
+          <MenuItem value="IN-PROGRESS">IN-PROGRESS</MenuItem>
+          <MenuItem value="BLOCKED">BLOCKED</MenuItem>
+          <MenuItem value="COMPLETED">COMPLETED</MenuItem>
         </TextField>
 
-        <Box display="flex" justifyContent="space-between" mt={2}>
+        <Box display="flex" justifyContent="space-between">
           <Button variant="outlined" onClick={() => setShowCommentModal(true)}>Add Comment</Button>
-          <Button variant="contained" color="primary" onClick={handleSubmit}>Create Task</Button>
+          <Button type="submit" variant="contained" color="primary">Create Task</Button>
         </Box>
-      </Paper>
+      </Box>
 
-      {/* Comment Modal */}
-      <Dialog open={showCommentModal} onClose={() => setShowCommentModal(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Comment</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Comment"
-            fullWidth multiline rows={4}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowCommentModal(false)}>Cancel</Button>
-          <Button onClick={() => setShowCommentModal(false)} variant="contained">Save</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      <CommentModal
+        open={showCommentModal}
+        onClose={() => setShowCommentModal(false)}
+        onSave={(value) => {
+          setComment(value);
+          setShowCommentModal(false);
+        }}
+        value={comment}
+      />
+    </Paper>
   );
 };
 
