@@ -57,7 +57,7 @@ def create_task():
         name=data['name'],
         description=data['description'],
         status=data['status'],
-        user_id=current_user.id
+        reporter_id=current_user.id
     )
     db.session.add(task)
     db.session.commit()
@@ -74,9 +74,9 @@ def create_task():
 def get_tasks():
     status_filter = request.args.get('status')
     if status_filter:
-        tasks = Task.query.filter_by(user_id=current_user.id, status=status_filter).all()
+        tasks = Task.query.filter_by(reporter_id=current_user.id, status=status_filter).all()
     else:
-        tasks = Task.query.filter_by(user_id=current_user.id).all()
+        tasks = Task.query.filter_by(reporter_id=current_user.id).all()
 
     return jsonify([task.to_dict() for task in tasks])
 
@@ -86,20 +86,14 @@ def get_task(task_id):
     task = Task.query.get(task_id)
     if not task:
         return jsonify({"message": "Task not found"}), 404
-    return jsonify({
-        "id": task.id,
-        "name": task.name,
-        "description": task.description,
-        "status": task.status,
-        "reporter": task.reporter
-    })
+    return jsonify(task.to_dict())
 
 
 @main.route("/api/tasks/<int:task_id>", methods=["PUT"])
 @login_required
 def edit_task(task_id):
     task = Task.query.get_or_404(task_id)
-    if task.user_id != current_user.id:
+    if task.reporter_id != current_user.id:
         return jsonify({"error": "Unauthorized"}), 403
 
     data = request.get_json()
@@ -114,7 +108,7 @@ def edit_task(task_id):
 @login_required
 def delete_task(task_id):
     task = Task.query.get_or_404(task_id)
-    if task.user_id != current_user.id:
+    if task.reporter_id != current_user.id:
         return jsonify({"error": "Unauthorized"}), 403
 
     db.session.delete(task)

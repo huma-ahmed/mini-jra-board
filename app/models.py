@@ -4,7 +4,6 @@ from datetime import datetime
 
 from . import db
 
-
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)                
     username = db.Column(db.String(150), unique=True, nullable=False)
@@ -13,29 +12,25 @@ class User(db.Model, UserMixin):
 
 
 class Task(db.Model):
-    id=db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
-    attachment_filename = db.Column(db.String(255))
-    status = db.Column(db.String(50), default='To Do')  # to do, in progress, blocked, completed
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='tasks')
     
+    reporter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    reporter = db.relationship('User', backref='tasks')
+    status = db.Column(db.String(50), default='To Do')  # To Do, In Progress, Blocked, Completed
+
     comments = db.relationship('Comment', backref='task', cascade="all, delete-orphan")
-
-    
     def to_dict(self):
         return {
             "id": self.id,
             "name": self.name,
             "description": self.description,
             "status": self.status,
-            "created_at": self.created_at.isoformat(),
-            "user_id": self.user_id,
+            "reporter": self.reporter.username,  # 👈 username shown here
             "comments": [comment.content for comment in self.comments]
         }
+
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
