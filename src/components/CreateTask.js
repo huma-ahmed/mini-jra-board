@@ -1,46 +1,105 @@
-import React, { useState } from 'react';
+import React, { useReducer, useEffect, useState } from 'react';
 import {
   Box, Button, MenuItem, TextField, Typography, Paper
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import CommentModal from './CommentModal';
 
+// Initial state
+const initialState = {
+  taskName: '',
+  description: '',
+  reporter: '',
+  status: 'TO-DO',
+  errors: {}
+};
+
+// Reducer
+function formReducer(state, action) {
+  switch (action.type) {
+    case 'UPDATE_FIELD':
+      return { ...state, [action.field]: action.value };
+    case 'SET_ERRORS':
+      return { ...state, errors: action.errors };
+    case 'RESET':
+      return initialState;
+    default:
+      return state;
+  }
+}
+
 const CreateTask = () => {
-  const [taskName, setTaskName] = useState('');
-  const [description, setDescription] = useState('');
-  const [status, setStatus] = useState('TO-DO');
-  const [reporter, setReporter] = useState('');
+  const [state, dispatch] = useReducer(formReducer, initialState);
+  const [reporterList, setReporterList] = useState([]);
   const [comment, setComment] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
   const navigate = useNavigate();
 
+  // ✅ Fetch reporters from task descriptions
+  useEffect(() => {
+    const fetchReporters = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/tasks', {
+          method: 'GET',
+          credentials: 'include',
+        });
+
+        if (!res.ok) throw new Error('Failed to fetch tasks');
+
+        const data = await res.json();
+        const reporters = new Set();
+
+        data.forEach(task => {
+          const match = task.description.match(/Reporter:\s*(.+)/);
+          if (match) reporters.add(match[1].split('\n')[0].trim());
+        });
+
+        setReporterList([...reporters]);
+      } catch (error) {
+        console.error('Error fetching reporters:', error);
+      }
+    };
+
+    fetchReporters();
+  }, []);
+
+  const validate = () => {
+    const errors = {};
+    if (!state.taskName.trim()) errors.taskName = 'Task Name is required.';
+    if (!state.description.trim()) errors.description = 'Description is required.';
+    if (!state.reporter.trim()) errors.reporter = 'Reporter must be selected.';
+    return errors;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const errors = validate();
 
-    const finalDescription = `${description}\nReporter: ${reporter}${comment ? `\nComment: ${comment}` : ''}`;
+    if (Object.keys(errors).length > 0) {
+      dispatch({ type: 'SET_ERRORS', errors });
+      return;
+    }
+
+    const finalDescription = `${state.description}\nReporter: ${state.reporter}${comment ? `\nComment: ${comment}` : ''}`;
 
     try {
-      const response = await fetch('http://localhost:5000/api/tasks', { // <== FIXED URL
+      const res = await fetch('http://localhost:5000/api/tasks', {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: taskName,
+          name: state.taskName,
           description: finalDescription,
-          status,
+          status: state.status,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Task creation failed');
-      }
-
+      if (!res.ok) throw new Error('Task creation failed');
+      dispatch({ type: 'RESET' });
       navigate('/dashboard');
-    } catch (error) {
-      console.error('Error creating task:', error);
-      alert('Task creation failed. Please check inputs or try again.');
+    } catch (err) {
+      console.error('Error creating task:', err);
+      alert('Task creation failed. Please try again.');
     }
   };
 
@@ -49,44 +108,47 @@ const CreateTask = () => {
       <Typography variant="h5" gutterBottom>Create Task</Typography>
       <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <TextField
-          id="taskName"
           label="Task Name"
-          name="taskName"
-          value={taskName}
-          onChange={(e) => setTaskName(e.target.value)}
+          value={state.taskName}
+          onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'taskName', value: e.target.value })}
+          error={!!state.errors.taskName}
+          helperText={state.errors.taskName}
           required
         />
         <TextField
-          id="description"
           label="Description"
-          name="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={state.description}
+          onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'description', value: e.target.value })}
           multiline
           rows={4}
+          error={!!state.errors.description}
+          helperText={state.errors.description}
           required
         />
+
         <TextField
-          id="reporter"
           select
           label="Reporter"
-          name="reporter"
-          value={reporter}
-          onChange={(e) => setReporter(e.target.value)}
+          value={state.reporter}
+          onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'reporter', value: e.target.value })}
+          error={!!state.errors.reporter}
+          helperText={state.errors.reporter}
           required
         >
-          <MenuItem value="Ali">Ali</MenuItem>
-          <MenuItem value="Zohan">Zohan</MenuItem>
-          <MenuItem value="Omama">Omama</MenuItem>
+          {reporterList.length === 0 ? (
+            <MenuItem disabled>No reporters found</MenuItem>
+          ) : (
+            reporterList.map((name) => (
+              <MenuItem key={name} value={name}>{name}</MenuItem>
+            ))
+          )}
         </TextField>
+
         <TextField
-          id="status"
           select
           label="Status"
-          name="status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          required
+          value={state.status}
+          onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'status', value: e.target.value })}
         >
           <MenuItem value="TO-DO">TO-DO</MenuItem>
           <MenuItem value="IN-PROGRESS">IN-PROGRESS</MenuItem>

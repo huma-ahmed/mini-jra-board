@@ -1,18 +1,39 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useReducer, useState } from 'react';
 import {
   Box, Button, MenuItem, TextField, Typography, Paper
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import CommentModal from './CommentModal';
 
+// Initial state
+const initialState = {
+  taskName: '',
+  description: '',
+  reporter: '',
+  status: '',
+  errors: {}
+};
+
+// Reducer
+function formReducer(state, action) {
+  switch (action.type) {
+    case 'SET_FIELD':
+      return { ...state, [action.field]: action.value };
+    case 'SET_ERRORS':
+      return { ...state, errors: action.errors };
+    case 'SET_ALL_FIELDS':
+      return { ...state, ...action.payload };
+    default:
+      return state;
+  }
+}
+
 const EditTask = () => {
   const { taskId } = useParams();
   const navigate = useNavigate();
 
-  const [taskName, setTaskName] = useState('');
-  const [description, setDescription] = useState('');
-  const [status, setStatus] = useState('');
-  const [reporter, setReporter] = useState('');
+  const [state, dispatch] = useReducer(formReducer, initialState);
+  const [reporterList, setReporterList] = useState([]);
   const [comment, setComment] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [error, setError] = useState('');
@@ -30,43 +51,68 @@ const EditTask = () => {
   };
 
   useEffect(() => {
-    const fetchTask = async () => {
+    const fetchTaskAndReporters = async () => {
       try {
         const res = await fetch('http://localhost:5000/api/tasks', {
           method: 'GET',
           credentials: 'include',
         });
 
-        if (!res.ok) {
-          throw new Error('Failed to fetch tasks');
-        }
+        if (!res.ok) throw new Error('Failed to fetch tasks');
 
         const data = await res.json();
-        const task = data.find((t) => t.id === parseInt(taskId));
 
-        if (!task) {
-          throw new Error('Task not found');
-        }
+        // Populate reporter dropdown
+        const reporters = new Set();
+        data.forEach(t => {
+          const match = t.description.match(/Reporter:\s*(.+)/);
+          if (match) reporters.add(match[1].split('\n')[0].trim());
+        });
+        setReporterList([...reporters]);
+
+        // Find the task to edit
+        const task = data.find((t) => t.id === parseInt(taskId));
+        if (!task) throw new Error('Task not found');
 
         const parsed = parseDescription(task.description);
-        setTaskName(task.name);
-        setDescription(parsed.description);
-        setReporter(parsed.reporter);
+        dispatch({
+          type: 'SET_ALL_FIELDS',
+          payload: {
+            taskName: task.name,
+            description: parsed.description,
+            reporter: parsed.reporter,
+            status: task.status,
+          }
+        });
         setComment(parsed.comment);
-        setStatus(task.status);
       } catch (err) {
         console.error(err);
         setError(err.message);
       }
     };
 
-    fetchTask();
+    fetchTaskAndReporters();
   }, [taskId]);
+
+  const validate = () => {
+    const errors = {};
+    if (!state.taskName.trim()) errors.taskName = 'Task Name is required.';
+    if (!state.description.trim()) errors.description = 'Description is required.';
+    if (!state.reporter.trim()) errors.reporter = 'Reporter must be selected.';
+    if (!state.status.trim()) errors.status = 'Status is required.';
+    return errors;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const fullDescription = `${description}\nReporter: ${reporter}${comment ? `\nComment: ${comment}` : ''}`;
+    const errors = validate();
+    if (Object.keys(errors).length > 0) {
+      dispatch({ type: 'SET_ERRORS', errors });
+      return;
+    }
+
+    const fullDescription = `${state.description}\nReporter: ${state.reporter}${comment ? `\nComment: ${comment}` : ''}`;
 
     try {
       const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
@@ -74,20 +120,17 @@ const EditTask = () => {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: taskName,
+          name: state.taskName,
           description: fullDescription,
-          status,
+          status: state.status,
         }),
       });
 
-      if (!res.ok) {
-        throw new Error('Failed to update task');
-      }
-
+      if (!res.ok) throw new Error('Failed to update task');
       navigate('/dashboard');
     } catch (err) {
       console.error(err);
-      alert('Failed to update task');
+      alert('Task update failed. Try again.');
     }
   };
 
@@ -105,34 +148,45 @@ const EditTask = () => {
       <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <TextField
           label="Task Name"
-          value={taskName}
-          onChange={(e) => setTaskName(e.target.value)}
+          value={state.taskName}
+          onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'taskName', value: e.target.value })}
+          error={!!state.errors.taskName}
+          helperText={state.errors.taskName}
           required
         />
+
         <TextField
           label="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={state.description}
+          onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'description', value: e.target.value })}
           multiline
           rows={4}
+          error={!!state.errors.description}
+          helperText={state.errors.description}
           required
         />
+
         <TextField
           select
           label="Reporter"
-          value={reporter}
-          onChange={(e) => setReporter(e.target.value)}
+          value={state.reporter}
+          onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'reporter', value: e.target.value })}
+          error={!!state.errors.reporter}
+          helperText={state.errors.reporter}
           required
         >
-          <MenuItem value="Ali">Ali</MenuItem>
-          <MenuItem value="Zohan">Zohan</MenuItem>
-          <MenuItem value="Omama">Omama</MenuItem>
+          {reporterList.map((name) => (
+            <MenuItem key={name} value={name}>{name}</MenuItem>
+          ))}
         </TextField>
+
         <TextField
           select
           label="Status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          value={state.status}
+          onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'status', value: e.target.value })}
+          error={!!state.errors.status}
+          helperText={state.errors.status}
           required
         >
           <MenuItem value="TO-DO">TO-DO</MenuItem>

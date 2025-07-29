@@ -1,82 +1,108 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef } from 'react';
 import {
-  Box, Button, Typography, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, Paper
+  Box,
+  Button,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { AppContext } from '../context/AppContext';
 
 const Dashboard = () => {
-  const [tasks, setTasks] = useState([]);
+  const { state, dispatch } = useContext(AppContext);
   const navigate = useNavigate();
+  const tableRef = useRef(null);
 
-  const fetchTasks = async () => {
-    try {
-      const res = await fetch('http://localhost:5000/api/tasks', {
-        credentials: 'include'
-      });
-      const data = await res.json();
+  // ✅ useEffect with fetchTasks defined inside to avoid ESLint warning
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/tasks', {
+          credentials: 'include',
+        });
+        const data = await res.json();
 
-      const cleanedTasks = data.map(task => {
-        const lines = task.description.split('\n');
-        const mainDesc = lines[0];
-        let reporter = '', comment = '';
+        const cleanedTasks = data.map((task) => {
+          const lines = task.description.split('\n');
+          const mainDesc = lines[0];
+          let reporter = '',
+            comment = '';
 
-        lines.slice(1).forEach(line => {
-          if (line.startsWith('Reporter:')) {
-            reporter = line.replace('Reporter:', '').trim();
-          } else if (line.startsWith('Comment:')) {
-            comment = line.replace('Comment:', '').trim();
-          }
+          lines.slice(1).forEach((line) => {
+            if (line.startsWith('Reporter:')) {
+              reporter = line.replace('Reporter:', '').trim();
+            } else if (line.startsWith('Comment:')) {
+              comment = line.replace('Comment:', '').trim();
+            }
+          });
+
+          return {
+            ...task,
+            mainDesc,
+            reporter,
+            comment,
+          };
         });
 
-        return {
-          ...task,
-          mainDesc,
-          reporter,
-          comment
-        };
-      });
+        dispatch({ type: 'SET_TASKS', payload: cleanedTasks });
+      } catch (err) {
+        console.error('Failed to fetch tasks:', err);
+      }
+    };
 
-      setTasks(cleanedTasks);
-    } catch (err) {
-      console.error('Failed to fetch tasks:', err);
-    }
-  };
+    fetchTasks();
+  }, [dispatch]);
 
   const handleDelete = async (taskId) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this task?");
-     if (!confirmDelete) return;
+    const confirmDelete = window.confirm('Are you sure you want to delete this task?');
+    if (!confirmDelete) return;
 
-       try {
-       const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+    try {
+      const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
         method: 'DELETE',
-        credentials: 'include'
-       });
+        credentials: 'include',
+      });
 
-       if (res.ok) {
-        setTasks(tasks.filter(task => task.id !== taskId));
-       } else {
+      if (res.ok) {
+        dispatch({ type: 'DELETE_TASK', payload: taskId });
+      } else {
         alert('Failed to delete task');
-       }
-       } catch (err) {
+      }
+    } catch (err) {
       console.error('Error deleting task:', err);
     }
   };
 
+  // ✅ Memoized task list
+  const memoizedTasks = useMemo(() => state.tasks, [state.tasks]);
+
+  // ✅ useRef demo
   useEffect(() => {
-    fetchTasks();
+    if (tableRef.current) {
+      console.log('📦 Task table mounted:', tableRef.current);
+    }
   }, []);
 
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Typography variant="h5">Welcome Dummy</Typography>
-        <Button variant="contained" onClick={() => navigate('/create-task')}>Create Task</Button>
+        <Typography variant="h5">Welcome {state.username || 'User'}</Typography>
+        <Button variant="contained" onClick={() => navigate('/create-task')}>
+          Create Task
+        </Button>
       </Box>
 
-      <Typography variant="h6" mt={3}>Tasks</Typography>
+      <Typography variant="h6" mt={3}>
+        Tasks
+      </Typography>
       <TableContainer component={Paper} sx={{ mt: 2 }}>
-        <Table>
+        <Table ref={tableRef}>
           <TableHead>
             <TableRow>
               <TableCell>Task Name</TableCell>
@@ -87,7 +113,7 @@ const Dashboard = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {tasks.map(task => (
+            {memoizedTasks.map((task) => (
               <TableRow key={task.id}>
                 <TableCell>{task.name}</TableCell>
                 <TableCell>{task.mainDesc}</TableCell>
@@ -96,8 +122,9 @@ const Dashboard = () => {
                 <TableCell>
                   <Button onClick={() => navigate(`/view-task/${task.id}`)}>View</Button>
                   <Button onClick={() => navigate(`/edit-task/${task.id}`)}>Edit</Button>
-                  <Button onClick={() => handleDelete(task.id)} color="error">Delete</Button>
-                  {/* Optional delete */}
+                  <Button onClick={() => handleDelete(task.id)} color="error">
+                    Delete
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}

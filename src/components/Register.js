@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useReducer } from 'react';
 import {
   Button,
   Card,
@@ -9,67 +9,103 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
+// Initial state
+const initialState = {
+  username: '',
+  password: '',
+  confirmPassword: '',
+  errors: {},
+  success: '',
+  isLoading: false,
+};
+
+// Reducer
+const reducer = (state, action) => {
+  switch (action.type) {
+    case 'FIELD':
+      return {
+        ...state,
+        [action.field]: action.value,
+        errors: { ...state.errors, [action.field]: '' },
+        success: '',
+      };
+    case 'SET_ERRORS':
+      return {
+        ...state,
+        errors: action.errors,
+        success: '',
+      };
+    case 'SET_SUCCESS':
+      return {
+        ...state,
+        success: action.success,
+        errors: {},
+      };
+    case 'SET_LOADING':
+      return {
+        ...state,
+        isLoading: action.value,
+      };
+    case 'RESET':
+      return initialState;
+    default:
+      return state;
+  }
+};
+
 export default function Register() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [state, dispatch] = useReducer(reducer, initialState);
   const navigate = useNavigate();
 
+  const validateForm = () => {
+    const errors = {};
+    if (!state.username.trim()) errors.username = 'Username is required';
+    if (!state.password.trim()) errors.password = 'Password is required';
+    if (state.password.length < 6) errors.password = 'Password must be at least 6 characters';
+    if (!state.confirmPassword.trim()) errors.confirmPassword = 'Confirm Password is required';
+    if (state.password !== state.confirmPassword) errors.confirmPassword = 'Passwords do not match';
+    return errors;
+  };
+
   const handleRegister = async () => {
-    const trimmedUsername = username.trim();
-
-    if (!trimmedUsername || !password.trim() || !confirmPassword.trim()) {
-      setError('All fields are required.');
-      setSuccess('');
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      dispatch({ type: 'SET_ERRORS', errors });
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      setSuccess('');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      setSuccess('');
-      return;
-    }
+    dispatch({ type: 'SET_LOADING', value: true });
 
     try {
-      setIsLoading(true);
       const response = await fetch('http://localhost:5000/register', {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: trimmedUsername,
-          password,
-          email: `${trimmedUsername}@example.com`
+          username: state.username.trim(),
+          password: state.password,
+          email: `${state.username.trim()}@example.com`
         })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setError('');
-        setSuccess('Registration successful! Redirecting to login...');
+        dispatch({ type: 'SET_SUCCESS', success: 'Registration successful! Redirecting to login...' });
         setTimeout(() => navigate('/'), 1500);
       } else {
-        setSuccess('');
-        setError(data.error || 'Registration failed. Try again.');
+        dispatch({
+          type: 'SET_ERRORS',
+          errors: { general: data.error || 'Registration failed. Try again.' }
+        });
       }
-    } catch (err) {
-      console.error('❌ Registration error:', err);
-      setSuccess('');
-      setError('Server error. Please try again later.');
+    } catch (error) {
+      dispatch({
+        type: 'SET_ERRORS',
+        errors: { general: 'Server error. Please try again later.' }
+      });
     } finally {
-      setIsLoading(false);
+      dispatch({ type: 'SET_LOADING', value: false });
     }
   };
 
@@ -78,53 +114,54 @@ export default function Register() {
   };
 
   return (
-    <Box
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      minHeight="100vh"
-      bgcolor="#f5f5f5"
-    >
+    <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="#f5f5f5">
       <Card sx={{ padding: 4, width: 350, boxShadow: 3 }}>
-        <Typography variant="h5" textAlign="center" gutterBottom>
-          Register
-        </Typography>
+        <Typography variant="h5" textAlign="center" gutterBottom>Register</Typography>
 
         <TextField
           label="Username"
           fullWidth
           margin="normal"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          value={state.username}
+          onChange={(e) => dispatch({ type: 'FIELD', field: 'username', value: e.target.value })}
           onKeyDown={handleKeyDown}
+          error={!!state.errors.username}
+          helperText={state.errors.username}
         />
+
         <TextField
           label="Password"
           type="password"
           fullWidth
           margin="normal"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={state.password}
+          onChange={(e) => dispatch({ type: 'FIELD', field: 'password', value: e.target.value })}
           onKeyDown={handleKeyDown}
+          error={!!state.errors.password}
+          helperText={state.errors.password}
         />
+
         <TextField
           label="Confirm Password"
           type="password"
           fullWidth
           margin="normal"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
+          value={state.confirmPassword}
+          onChange={(e) => dispatch({ type: 'FIELD', field: 'confirmPassword', value: e.target.value })}
           onKeyDown={handleKeyDown}
+          error={!!state.errors.confirmPassword}
+          helperText={state.errors.confirmPassword}
         />
 
-        {error && (
+        {state.errors.general && (
           <Typography color="error" variant="body2" sx={{ mt: 1 }}>
-            {error}
+            {state.errors.general}
           </Typography>
         )}
-        {success && (
+
+        {state.success && (
           <Typography color="primary" variant="body2" sx={{ mt: 1 }}>
-            {success}
+            {state.success}
           </Typography>
         )}
 
@@ -134,9 +171,9 @@ export default function Register() {
           fullWidth
           sx={{ mt: 2 }}
           onClick={handleRegister}
-          disabled={isLoading}
+          disabled={state.isLoading}
         >
-          {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Register'}
+          {state.isLoading ? <CircularProgress size={24} color="inherit" /> : 'Register'}
         </Button>
 
         <Button
