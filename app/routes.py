@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from .models import db, User, Task, Comment
+from .models import db, User, Task
 
 main = Blueprint('main', __name__)
 
@@ -57,15 +57,12 @@ def create_task():
         name=data['name'],
         description=data['description'],
         status=data['status'],
-        reporter_id=current_user.id
+        reporter_id=current_user.id,
+        comments=data.get('comments')
     )
+    
     db.session.add(task)
     db.session.commit()
-
-    if data.get('comment'):
-        comment = Comment(content=data['comment'], task=task)
-        db.session.add(comment)
-        db.session.commit()
 
     return jsonify({"message": "Task created successfully"}), 201
 
@@ -73,10 +70,11 @@ def create_task():
 @login_required
 def get_tasks():
     status_filter = request.args.get('status')
+
     if status_filter:
-        tasks = Task.query.filter_by(reporter_id=current_user.id, status=status_filter).all()
+        tasks = Task.query.filter_by(status=status_filter).all()  
     else:
-        tasks = Task.query.filter_by(reporter_id=current_user.id).all()
+        tasks = Task.query.all()
 
     return jsonify([task.to_dict() for task in tasks])
 
@@ -100,6 +98,7 @@ def edit_task(task_id):
     task.name = data['name']
     task.description = data['description']
     task.status = data['status']
+    task.comments=data.get('comments')
     db.session.commit()
 
     return jsonify({"message": "Task updated"}), 200
