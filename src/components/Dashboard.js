@@ -19,7 +19,6 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const tableRef = useRef(null);
 
-  // ✅ useEffect with fetchTasks defined inside to avoid ESLint warning
   useEffect(() => {
     const fetchTasks = async () => {
       try {
@@ -31,8 +30,7 @@ const Dashboard = () => {
         const cleanedTasks = data.map((task) => {
           const lines = task.description.split('\n');
           const mainDesc = lines[0];
-          let reporter = '',
-            comment = '';
+          let reporter = '', comment = '';
 
           lines.slice(1).forEach((line) => {
             if (line.startsWith('Reporter:')) {
@@ -79,10 +77,21 @@ const Dashboard = () => {
     }
   };
 
-  // ✅ Memoized task list
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:5000/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      dispatch({ type: 'LOGOUT' }); // optional, in case you track user state
+      navigate('/');
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
+
   const memoizedTasks = useMemo(() => state.tasks, [state.tasks]);
 
-  // ✅ useRef demo
   useEffect(() => {
     if (tableRef.current) {
       console.log('📦 Task table mounted:', tableRef.current);
@@ -93,14 +102,20 @@ const Dashboard = () => {
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Typography variant="h5">Welcome {state.username || 'User'}</Typography>
-        <Button variant="contained" onClick={() => navigate('/create-task')}>
-          Create Task
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button variant="contained" onClick={() => navigate('/create-task')}>
+            Create Task
+          </Button>
+          <Button variant="outlined" color="error" onClick={handleLogout}>
+            Logout
+          </Button>
+        </Box>
       </Box>
 
       <Typography variant="h6" mt={3}>
         Tasks
       </Typography>
+
       <TableContainer component={Paper} sx={{ mt: 2 }}>
         <Table ref={tableRef}>
           <TableHead>
