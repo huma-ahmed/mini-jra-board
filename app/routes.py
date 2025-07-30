@@ -114,3 +114,12 @@ def delete_task(task_id):
     db.session.commit()
     return jsonify({"message": "Task deleted"}), 200
 
+@main.route("/api/users", methods=["GET"])
+@login_required
+def get_all_users():
+    users = User.query.all()
+    user_list = [
+        {"id": user.id, "username": user.username}
+        for user in users
+    ]
+    return jsonify(user_list), 200
