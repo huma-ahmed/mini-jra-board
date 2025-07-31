@@ -51,28 +51,30 @@ const EditTask = () => {
   };
 
   useEffect(() => {
-    const fetchTaskAndReporters = async () => {
+    const fetchTaskAndUsers = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/tasks', {
+        // ✅ Fetch all users
+        const usersRes = await fetch('http://localhost:5000/api/users', {
           method: 'GET',
           credentials: 'include',
         });
+        if (!usersRes.ok) throw new Error('Failed to fetch users');
+        const users = await usersRes.json();
+        console.log('✅ Users:', users);
+        setReporterList(users.map(user => user.username));
 
-        if (!res.ok) throw new Error('Failed to fetch tasks');
-
-        const data = await res.json();
-
-        // Populate reporter dropdown
-        const reporters = new Set();
-        data.forEach(t => {
-          const match = t.description.match(/Reporter:\s*(.+)/);
-          if (match) reporters.add(match[1].split('\n')[0].trim());
+        // ✅ Fetch all tasks
+        const tasksRes = await fetch('http://localhost:5000/api/tasks', {
+          method: 'GET',
+          credentials: 'include',
         });
-        setReporterList([...reporters]);
+        if (!tasksRes.ok) throw new Error('Failed to fetch tasks');
+        const tasks = await tasksRes.json();
+        console.log('📦 All Tasks:', tasks);
 
-        // Find the task to edit
-        const task = data.find((t) => t.id === parseInt(taskId));
+        const task = tasks.find((t) => t.id === parseInt(taskId));
         if (!task) throw new Error('Task not found');
+        console.log('✏️ Task to Edit:', task);
 
         const parsed = parseDescription(task.description);
         dispatch({
@@ -86,12 +88,12 @@ const EditTask = () => {
         });
         setComment(parsed.comment);
       } catch (err) {
-        console.error(err);
+        console.error('❌ Fetch Error:', err);
         setError(err.message);
       }
     };
 
-    fetchTaskAndReporters();
+    fetchTaskAndUsers();
   }, [taskId]);
 
   const validate = () => {
@@ -114,22 +116,34 @@ const EditTask = () => {
 
     const fullDescription = `${state.description}\nReporter: ${state.reporter}${comment ? `\nComment: ${comment}` : ''}`;
 
+    const updatePayload = {
+      name: state.taskName,
+      description: fullDescription,
+      status: state.status,
+    };
+
+    console.log('🚀 Submitting update for taskId:', taskId);
+    console.log('📤 Payload:', updatePayload);
+
     try {
       const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: state.taskName,
-          description: fullDescription,
-          status: state.status,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
-      if (!res.ok) throw new Error('Failed to update task');
+      const responseText = await res.text();
+      console.log('📥 Server response (raw):', responseText);
+      console.log('📊 Status code:', res.status);
+
+      if (!res.ok) {
+        throw new Error(`Failed to update task. Status: ${res.status}`);
+      }
+
       navigate('/dashboard');
     } catch (err) {
-      console.error(err);
+      console.error('❌ Task update failed:', err);
       alert('Task update failed. Try again.');
     }
   };
@@ -176,7 +190,9 @@ const EditTask = () => {
           required
         >
           {reporterList.map((name) => (
-            <MenuItem key={name} value={name}>{name}</MenuItem>
+            <MenuItem key={name} value={name}>
+              {name}
+            </MenuItem>
           ))}
         </TextField>
 

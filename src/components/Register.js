@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 // Initial state
 const initialState = {
   username: '',
+  email: '',
   password: '',
   confirmPassword: '',
   errors: {},
@@ -60,10 +61,16 @@ export default function Register() {
   const validateForm = () => {
     const errors = {};
     if (!state.username.trim()) errors.username = 'Username is required';
+    if (!state.email.trim()) errors.email = 'Email is required';
+    else if (!/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(state.email))
+      errors.email = 'Invalid email format';
     if (!state.password.trim()) errors.password = 'Password is required';
-    if (state.password.length < 6) errors.password = 'Password must be at least 6 characters';
-    if (!state.confirmPassword.trim()) errors.confirmPassword = 'Confirm Password is required';
-    if (state.password !== state.confirmPassword) errors.confirmPassword = 'Passwords do not match';
+    if (state.password.length < 6)
+      errors.password = 'Password must be at least 6 characters';
+    if (!state.confirmPassword.trim())
+      errors.confirmPassword = 'Confirm Password is required';
+    if (state.password !== state.confirmPassword)
+      errors.confirmPassword = 'Passwords do not match';
     return errors;
   };
 
@@ -83,26 +90,29 @@ export default function Register() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: state.username.trim(),
+          email: state.email.trim(),
           password: state.password,
-          email: `${state.username.trim()}@example.com`
-        })
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        dispatch({ type: 'SET_SUCCESS', success: 'Registration successful! Redirecting to login...' });
+        dispatch({
+          type: 'SET_SUCCESS',
+          success: 'Registration successful! Redirecting to login...',
+        });
         setTimeout(() => navigate('/'), 1500);
       } else {
         dispatch({
           type: 'SET_ERRORS',
-          errors: { general: data.error || 'Registration failed. Try again.' }
+          errors: { general: data.error || 'Registration failed. Try again.' },
         });
       }
     } catch (error) {
       dispatch({
         type: 'SET_ERRORS',
-        errors: { general: 'Server error. Please try again later.' }
+        errors: { general: 'Server error. Please try again later.' },
       });
     } finally {
       dispatch({ type: 'SET_LOADING', value: false });
@@ -127,6 +137,17 @@ export default function Register() {
           onKeyDown={handleKeyDown}
           error={!!state.errors.username}
           helperText={state.errors.username}
+        />
+
+        <TextField
+          label="Email"
+          fullWidth
+          margin="normal"
+          value={state.email}
+          onChange={(e) => dispatch({ type: 'FIELD', field: 'email', value: e.target.value })}
+          onKeyDown={handleKeyDown}
+          error={!!state.errors.email}
+          helperText={state.errors.email}
         />
 
         <TextField

@@ -5,7 +5,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import CommentModal from './CommentModal';
 
-// Initial state
 const initialState = {
   taskName: '',
   description: '',
@@ -14,7 +13,6 @@ const initialState = {
   errors: {}
 };
 
-// Reducer
 function formReducer(state, action) {
   switch (action.type) {
     case 'UPDATE_FIELD':
@@ -30,37 +28,35 @@ function formReducer(state, action) {
 
 const CreateTask = () => {
   const [state, dispatch] = useReducer(formReducer, initialState);
-  const [reporterList, setReporterList] = useState([]);
   const [comment, setComment] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
+  const [userList, setUserList] = useState([]);
   const navigate = useNavigate();
 
-  // ✅ Fetch reporters from task descriptions
   useEffect(() => {
-    const fetchReporters = async () => {
+    const fetchUsers = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/tasks', {
+        const res = await fetch('http://localhost:5000/api/users', {
           method: 'GET',
           credentials: 'include',
         });
 
-        if (!res.ok) throw new Error('Failed to fetch tasks');
+        if (!res.ok) throw new Error('Failed to fetch users');
 
-        const data = await res.json();
-        const reporters = new Set();
+        const users = await res.json();
+        setUserList(users);
+        console.log('📥 Users fetched:', users);
 
-        data.forEach(task => {
-          const match = task.description.match(/Reporter:\s*(.+)/);
-          if (match) reporters.add(match[1].split('\n')[0].trim());
-        });
+        if (users.length > 0) {
+          dispatch({ type: 'UPDATE_FIELD', field: 'reporter', value: users[0].username });
+        }
 
-        setReporterList([...reporters]);
       } catch (error) {
-        console.error('Error fetching reporters:', error);
+        console.error('❌ Error fetching users:', error);
       }
     };
 
-    fetchReporters();
+    fetchUsers();
   }, []);
 
   const validate = () => {
@@ -80,25 +76,35 @@ const CreateTask = () => {
       return;
     }
 
-    const finalDescription = `${state.description}\nReporter: ${state.reporter}${comment ? `\nComment: ${comment}` : ''}`;
+    const payload = {
+      name: state.taskName,
+      description: state.description,
+      reporter: state.reporter, // ✅ Add reporter to payload
+      status: state.status,
+      comment: comment || null
+    };
+
+    console.log('📤 Sending task creation payload:', payload);
 
     try {
       const res = await fetch('http://localhost:5000/api/tasks', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: state.taskName,
-          description: finalDescription,
-          status: state.status,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error('Task creation failed');
+      const data = await res.json().catch(() => ({}));
+      console.log('📥 Server response:', res.status, data);
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Task creation failed');
+      }
+
       dispatch({ type: 'RESET' });
       navigate('/dashboard');
     } catch (err) {
-      console.error('Error creating task:', err);
+      console.error('❌ Error creating task:', err);
       alert('Task creation failed. Please try again.');
     }
   };
@@ -130,16 +136,19 @@ const CreateTask = () => {
           select
           label="Reporter"
           value={state.reporter}
-          onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'reporter', value: e.target.value })}
+          onChange={(e) => {
+            console.log('🧾 Reporter selected:', e.target.value);
+            dispatch({ type: 'UPDATE_FIELD', field: 'reporter', value: e.target.value });
+          }}
           error={!!state.errors.reporter}
           helperText={state.errors.reporter}
           required
         >
-          {reporterList.length === 0 ? (
-            <MenuItem disabled>No reporters found</MenuItem>
+          {userList.length === 0 ? (
+            <MenuItem disabled>No users found</MenuItem>
           ) : (
-            reporterList.map((name) => (
-              <MenuItem key={name} value={name}>{name}</MenuItem>
+            userList.map((user) => (
+              <MenuItem key={user.username} value={user.username}>{user.username}</MenuItem>
             ))
           )}
         </TextField>

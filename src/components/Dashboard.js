@@ -18,6 +18,7 @@ const Dashboard = () => {
   const { state, dispatch } = useContext(AppContext);
   const navigate = useNavigate();
   const tableRef = useRef(null);
+  const currentUser = state.username;
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -33,10 +34,14 @@ const Dashboard = () => {
           let reporter = '', comment = '';
 
           lines.slice(1).forEach((line) => {
-            if (line.startsWith('Reporter:')) {
-              reporter = line.replace('Reporter:', '').trim();
-            } else if (line.startsWith('Comment:')) {
-              comment = line.replace('Comment:', '').trim();
+            const [key, ...rest] = line.split(':');
+            const value = rest.join(':').trim();
+
+            if (key.trim() === 'Reporter' && value) {
+              reporter = value;
+            }
+            if (key.trim() === 'Comment' && value) {
+              comment = value;
             }
           });
 
@@ -79,11 +84,11 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:5000/logout', {
+      await fetch('http://localhost:5000/api/logout', {
         method: 'POST',
         credentials: 'include',
       });
-      dispatch({ type: 'LOGOUT' }); // optional, in case you track user state
+      dispatch({ type: 'LOGOUT' });
       navigate('/');
     } catch (err) {
       console.error('Logout failed:', err);
@@ -101,7 +106,7 @@ const Dashboard = () => {
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Typography variant="h5">Welcome {state.username || 'User'}</Typography>
+        <Typography variant="h5">Welcome {currentUser || 'User'}</Typography>
         <Box display="flex" gap={2}>
           <Button variant="contained" onClick={() => navigate('/create-task')}>
             Create Task
@@ -132,7 +137,15 @@ const Dashboard = () => {
               <TableRow key={task.id}>
                 <TableCell>{task.name}</TableCell>
                 <TableCell>{task.mainDesc}</TableCell>
-                <TableCell>{task.reporter}</TableCell>
+                <TableCell>
+                  {task.reporter ? (
+                    <span style={{ color: task.reporter === currentUser ? 'green' : 'black' }}>
+                      {task.reporter}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'red' }}>No Reporter</span>
+                  )}
+                </TableCell>
                 <TableCell>{task.status}</TableCell>
                 <TableCell>
                   <Button onClick={() => navigate(`/view-task/${task.id}`)}>View</Button>
