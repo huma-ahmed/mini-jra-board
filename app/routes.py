@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from .models import db, User, Task
+from .models import db, User, Task,Comment
 
 main = Blueprint('main', __name__)
 
@@ -54,11 +54,10 @@ def logout():
 def create_task():
     data = request.get_json()
     task = Task(
-        name=data['name'],
+        task_name=data['task_name'],
         description=data['description'],
         status=data['status'],
-        reporter_id=current_user.id,
-        comments=data.get('comments')
+        reporter_id=current_user.id
     )
     
     db.session.add(task)
@@ -80,39 +79,52 @@ def get_tasks():
 
 @main.route('/api/tasks/<int:task_id>', methods=['GET'])
 @login_required
-def get_task(task_id):
-    task = Task.query.get(task_id)
-    if not task:
-        return jsonify({"message": "Task not found"}), 404
-    return jsonify(task.to_dict())
+def view_task(task_id):
+    task = Task.query.get_or_404(task_id)
+
+    return jsonify({
+        "id": task.id,
+        "name": task.task_name,
+        "description": task.description,
+        "status": task.status,
+        "reporter": task.reporter.username  
+    }), 200
+
 
 
 @main.route("/api/tasks/<int:task_id>", methods=["PUT"])
 @login_required
-def edit_task(task_id):
+def edit_task(task_id):  
     task = Task.query.get_or_404(task_id)
+
     if task.reporter_id != current_user.id:
         return jsonify({"error": "Unauthorized"}), 403
 
     data = request.get_json()
-    task.name = data['name']
-    task.description = data['description']
-    task.status = data['status']
-    task.comments=data.get('comments')
+
+    task.task_name = data.get('name', task.task_name)
+    task.description = data.get('description', task.description)
+    task.status = data.get('status', task.status)
+    task.comments = data.get('comments', task.comments)
+
     db.session.commit()
 
-    return jsonify({"message": "Task updated"}), 200
+    return jsonify({"message": "Task updated successfully"}), 200
+
 
 @main.route("/api/tasks/<int:task_id>", methods=["DELETE"])
 @login_required
 def delete_task(task_id):
     task = Task.query.get_or_404(task_id)
-    if task.reporter_id != current_user.id:
-        return jsonify({"error": "Unauthorized"}), 403
+    if task.reporter_id!=current_user.id:
+       return jsonify({"Error ": "Unauthorized"}),403
+
 
     db.session.delete(task)
     db.session.commit()
+        
     return jsonify({"message": "Task deleted"}), 200
+
 
 @main.route("/api/users", methods=["GET"])
 @login_required
@@ -123,3 +135,33 @@ def get_all_users():
         for user in users
     ]
     return jsonify(user_list), 200
+
+@main.route('/api/current_user')
+@login_required
+def get_current_user():
+    return jsonify({"id": current_user.id, "username": current_user.username})
+
+
+@main.route("/api/tasks/<int:task_id>/comments", methods=["POST"])
+@login_required
+def add_comment(task_id):
+    data = request.get_json()
+    comment_text = data.get('comment')
+
+    if not comment_text:
+        return jsonify({"error": "Comment is missing!"}), 400
+
+    task = Task.query.get(task_id)
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+
+    # Create the comment
+    comment = Comment(text=comment_text, task_id=task.id)
+    db.session.add(comment)
+    db.session.commit()
+
+    # Return correct comment object
+    return jsonify({
+        "message": "Comment added successfully",
+        "comment": comment.to_dict()
+    }), 201
