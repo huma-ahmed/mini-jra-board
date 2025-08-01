@@ -3,16 +3,12 @@ import {
   Box,
   Button,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
   TableContainer,
-  TableHead,
-  TableRow,
   Paper,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
+import TaskTable from '../components/TaskTable';
 
 const Dashboard = () => {
   const { state, dispatch } = useContext(AppContext);
@@ -28,30 +24,10 @@ const Dashboard = () => {
         });
         const data = await res.json();
 
-        const cleanedTasks = data.map((task) => {
-          const lines = task.description.split('\n');
-          const mainDesc = lines[0];
-          let reporter = '', comment = '';
-
-          lines.slice(1).forEach((line) => {
-            const [key, ...rest] = line.split(':');
-            const value = rest.join(':').trim();
-
-            if (key.trim() === 'Reporter' && value) {
-              reporter = value;
-            }
-            if (key.trim() === 'Comment' && value) {
-              comment = value;
-            }
-          });
-
-          return {
-            ...task,
-            mainDesc,
-            reporter,
-            comment,
-          };
-        });
+        const cleanedTasks = data.map((task) => ({
+          ...task,
+          name: task.task_name // rename for consistency with frontend display
+        }));
 
         dispatch({ type: 'SET_TASKS', payload: cleanedTasks });
       } catch (err) {
@@ -122,42 +98,11 @@ const Dashboard = () => {
       </Typography>
 
       <TableContainer component={Paper} sx={{ mt: 2 }}>
-        <Table ref={tableRef}>
-          <TableHead>
-            <TableRow>
-              <TableCell>Task Name</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell>Reporter</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Action</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {memoizedTasks.map((task) => (
-              <TableRow key={task.id}>
-                <TableCell>{task.name}</TableCell>
-                <TableCell>{task.mainDesc}</TableCell>
-                <TableCell>
-                  {task.reporter ? (
-                    <span style={{ color: task.reporter === currentUser ? 'green' : 'black' }}>
-                      {task.reporter}
-                    </span>
-                  ) : (
-                    <span style={{ color: 'red' }}>No Reporter</span>
-                  )}
-                </TableCell>
-                <TableCell>{task.status}</TableCell>
-                <TableCell>
-                  <Button onClick={() => navigate(`/view-task/${task.id}`)}>View</Button>
-                  <Button onClick={() => navigate(`/edit-task/${task.id}`)}>Edit</Button>
-                  <Button onClick={() => handleDelete(task.id)} color="error">
-                    Delete
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <TaskTable
+          tasks={memoizedTasks}
+          onDelete={handleDelete}
+          currentUser={currentUser}
+        />
       </TableContainer>
     </Box>
   );

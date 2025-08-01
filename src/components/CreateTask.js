@@ -1,4 +1,4 @@
-import React, { useReducer, useEffect, useState } from 'react';
+import React, { useReducer, useState } from 'react';
 import {
   Box, Button, MenuItem, TextField, Typography, Paper
 } from '@mui/material';
@@ -8,10 +8,9 @@ import CommentModal from './CommentModal';
 const initialState = {
   taskName: '',
   description: '',
-  reporter: '',
   status: 'TO-DO',
   errors: {}
-};
+}; 
 
 function formReducer(state, action) {
   switch (action.type) {
@@ -23,47 +22,19 @@ function formReducer(state, action) {
       return initialState;
     default:
       return state;
-  }
+  } 
 }
 
 const CreateTask = () => {
   const [state, dispatch] = useReducer(formReducer, initialState);
   const [comment, setComment] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
-  const [userList, setUserList] = useState([]);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch('http://localhost:5000/api/users', {
-          method: 'GET',
-          credentials: 'include',
-        });
-
-        if (!res.ok) throw new Error('Failed to fetch users');
-
-        const users = await res.json();
-        setUserList(users);
-        console.log('📥 Users fetched:', users);
-
-        if (users.length > 0) {
-          dispatch({ type: 'UPDATE_FIELD', field: 'reporter', value: users[0].username });
-        }
-
-      } catch (error) {
-        console.error('❌ Error fetching users:', error);
-      }
-    };
-
-    fetchUsers();
-  }, []);
 
   const validate = () => {
     const errors = {};
     if (!state.taskName.trim()) errors.taskName = 'Task Name is required.';
     if (!state.description.trim()) errors.description = 'Description is required.';
-    if (!state.reporter.trim()) errors.reporter = 'Reporter must be selected.';
     return errors;
   };
 
@@ -77,11 +48,9 @@ const CreateTask = () => {
     }
 
     const payload = {
-      name: state.taskName,
+      task_name: state.taskName,
       description: state.description,
-      reporter: state.reporter, // ✅ Add reporter to payload
       status: state.status,
-      comment: comment || null
     };
 
     console.log('📤 Sending task creation payload:', payload);
@@ -131,27 +100,6 @@ const CreateTask = () => {
           helperText={state.errors.description}
           required
         />
-
-        <TextField
-          select
-          label="Reporter"
-          value={state.reporter}
-          onChange={(e) => {
-            console.log('🧾 Reporter selected:', e.target.value);
-            dispatch({ type: 'UPDATE_FIELD', field: 'reporter', value: e.target.value });
-          }}
-          error={!!state.errors.reporter}
-          helperText={state.errors.reporter}
-          required
-        >
-          {userList.length === 0 ? (
-            <MenuItem disabled>No users found</MenuItem>
-          ) : (
-            userList.map((user) => (
-              <MenuItem key={user.username} value={user.username}>{user.username}</MenuItem>
-            ))
-          )}
-        </TextField>
 
         <TextField
           select

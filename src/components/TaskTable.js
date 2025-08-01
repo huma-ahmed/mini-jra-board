@@ -4,7 +4,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
-export default function TaskTable({ tasks, onDelete }) {
+export default function TaskTable({ tasks, onDelete, currentUser }) {
   const navigate = useNavigate();
 
   return (
@@ -32,21 +32,25 @@ export default function TaskTable({ tasks, onDelete }) {
               >
                 View
               </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => navigate(`/edit-task/${task.id}`)}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                color="error"
-                onClick={() => onDelete(task.id)}
-              >
-                Delete
-              </Button>
+              {task.reporter === currentUser && (
+                <>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => navigate(`/edit-task/${task.id}`)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="error"
+                    onClick={() => onDelete(task.id)}
+                  >
+                    Delete
+                  </Button>
+                </>
+              )}
             </TableCell>
           </TableRow>
         ))}
