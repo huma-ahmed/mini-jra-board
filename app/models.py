@@ -18,6 +18,7 @@ class Task(db.Model):
     reporter = db.relationship('User', backref='tasks')
     status = db.Column(db.String(50), default='To Do')
 
+    # Relationship to comments
     comments = db.relationship('Comment', backref='task', lazy=True, cascade="all, delete")
 
     def to_dict(self):
@@ -30,7 +31,7 @@ class Task(db.Model):
             "reporter_id": self.reporter_id,
             "comments": [c.to_dict() for c in self.comments]
         }
-    
+
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.Text, nullable=False)
@@ -40,11 +41,7 @@ class Comment(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "comment": self.text,
+            "text": self.text,
             "task_id": self.task_id,
             "created_at": self.created_at.isoformat()
         }
-
-
-    
-

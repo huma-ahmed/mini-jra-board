@@ -49,21 +49,40 @@ def logout():
     logout_user()
     return jsonify({"message": "Logged out"}), 200
 
-@main.route("/api/tasks", methods=['POST'])
+@main.route("/api/tasks", methods=["POST"])
 @login_required
 def create_task():
     data = request.get_json()
+
+    task_name = data.get("task_name")
+    description = data.get("description")
+    status = data.get("status")
+    comment_text = data.get("comment")  # Optional comment field
+
+    if not task_name or not description:
+        return jsonify({"message": "Missing required fields"}), 400
+
+    # ✅ Create Task with current user as reporter
     task = Task(
-        task_name=data['task_name'],
-        description=data['description'],
-        status=data['status'],
-        reporter_id=current_user.id
+        task_name=task_name,
+        description=description,
+        status=status,
+        reporter_id=current_user.id  # Note: use reporter_id
     )
-    
     db.session.add(task)
     db.session.commit()
 
-    return jsonify({"message": "Task created successfully"}), 201
+    # ✅ Save comment if provided
+    if comment_text:
+        comment = Comment(text=comment_text, task_id=task.id)
+        db.session.add(comment)
+        db.session.commit()
+
+    return jsonify({
+        "message": "Task created successfully",
+        "task": task.to_dict()
+    }), 201
+
 
 @main.route("/api/tasks", methods=["GET"])
 @login_required
@@ -142,26 +161,3 @@ def get_current_user():
     return jsonify({"id": current_user.id, "username": current_user.username})
 
 
-@main.route("/api/tasks/<int:task_id>/comments", methods=["POST"])
-@login_required
-def add_comment(task_id):
-    data = request.get_json()
-    comment_text = data.get('comment')
-
-    if not comment_text:
-        return jsonify({"error": "Comment is missing!"}), 400
-
-    task = Task.query.get(task_id)
-    if not task:
-        return jsonify({"error": "Task not found"}), 404
-
-    # Create the comment
-    comment = Comment(text=comment_text, task_id=task.id)
-    db.session.add(comment)
-    db.session.commit()
-
-    # Return correct comment object
-    return jsonify({
-        "message": "Comment added successfully",
-        "comment": comment.to_dict()
-    }), 201
